@@ -1,4 +1,4 @@
-import axios, {AxiosResponse} from 'axios';
+import got, {Response} from 'got';
 import chalk from 'chalk';
 import {OptionValues} from 'commander';
 import pMap from 'p-map';
@@ -26,16 +26,19 @@ export default class Analyzer {
     });
   }
 
-  _isValid(response: AxiosResponse): boolean {
+  _isValid(response: Response): boolean {
     return this._isStatusOk(response) && this._isAnImage(response);
   }
 
-  _isStatusOk(response: AxiosResponse): boolean {
-    return response.status === 200;
+  _isStatusOk(response: Response): boolean {
+    return response.statusCode === 200;
   }
 
-  _isAnImage(response: AxiosResponse): boolean {
-    return response.headers['content-type'].trim().toLowerCase().startsWith('image/');
+  _isAnImage(response: Response): boolean {
+    if (response.headers['content-type']) {
+      return response.headers['content-type'].trim().toLowerCase().startsWith('image/');
+    }
+    return false;
   }
 
   async _analyzeSingleLine(line: Line, analyzedLines: AnalyzedLine[]): Promise<void> {
@@ -51,7 +54,7 @@ export default class Analyzer {
 
     if (!analyzedLine.error) {
       try {
-        const response = await axios.head(line.url);
+        const response: Response = await got.head(line.url, { http2: true, retry: 0 });
 
         if (!this._isValid(response)) {
           analyzedLine.markInError('HTTP_ERROR', 'HTTP status is not 200(OK) or the response content type is not an image');
